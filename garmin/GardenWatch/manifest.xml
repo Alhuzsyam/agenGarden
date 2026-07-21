@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<iq:manifest xmlns:iq="http://www.garmin.com/xml/connectiq" version="3">
+    <!-- App id was generated with `uuidgen`. Keep it stable across builds. -->
+    <iq:application id="4b495dfd41da46f8a0afcc09a090ab3d"
+                   type="watch-app"
+                   name="@Strings.AppName"
+                   entry="GardenApp"
+                   launcherIcon="@Drawables.LauncherIcon"
+                   minApiLevel="3.2.0">
+        <!-- Trim this to YOUR exact Forerunner. A product id must be one your
+             Connect IQ SDK Manager has downloaded, or the build fails. Run
+             `connectiq` / SDK Manager and match the id (e.g. fr265, fr965). -->
+        <iq:products>
+            <!-- Target: Forerunner 165 / 165 Music — one CIQ device id `fr165`. -->
+            <iq:product id="fr165"/>
+            <!-- sim stand-in kept for convenience; harmless. -->
+            <iq:product id="vivoactive5"/>
+        </iq:products>
+        <!-- makeWebRequest needs the Communications permission. -->
+        <iq:permissions>
+            <iq:uses-permission id="Communications"/>
+        </iq:permissions>
+        <iq:languages>
+            <iq:language>eng</iq:language>
+        </iq:languages>
+    </iq:application>
+</iq:manifest>

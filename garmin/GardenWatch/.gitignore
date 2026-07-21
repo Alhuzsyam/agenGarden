@@ -1,0 +1,8 @@
+# Config.mc holds the GardenServer token — never commit it.
+source/Config.mc
+
+# Build artifacts.
+bin/
+*.prg
+*.iq
+*.debug.xml

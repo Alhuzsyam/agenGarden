@@ -1,0 +1,20 @@
+// Copy this file to Config.mc and fill in the two values. Config.mc is
+// .gitignored because it holds your GardenServer token.
+//
+//  GARDEN_URL   — how the watch reaches GardenServer. The watch REQUIRES https
+//                 (plain http throws -1001 SECURE_CONNECTION_REQUIRED on real
+//                 hardware). Easiest: `tailscale serve --bg http://127.0.0.1:4141`
+//                 and point at your machine's MagicDNS name. For the SIMULATOR
+//                 (runs on your Mac) loopback also works.
+//
+//  GARDEN_TOKEN — the shared token from `~/.agent-garden-token`
+//                 (`cat ~/.agent-garden-token`). Without it every call is 401.
+//
+module Config {
+    const GARDEN_URL   = "https://<your-machine>.<your-tailnet>.ts.net";
+    // const GARDEN_URL = "http://127.0.0.1:4141";  // simulator only (turn OFF the sim's "Use Device HTTPS Requirements")
+    const GARDEN_TOKEN = "PASTE_TOKEN_HERE";
+
+    // How often to poll while the app is open, in milliseconds.
+    const POLL_MS = 3000;
+}

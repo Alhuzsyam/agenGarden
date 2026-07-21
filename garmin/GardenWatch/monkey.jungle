@@ -1,0 +1,8 @@
+# Connect IQ build config. Sources under source/ and resources under
+# resources/ are picked up by default; we only need to point at the manifest.
+project.manifest = manifest.xml
+
+# Spike: relax strict type-checking. The makeWebRequest callback stub in SDK 9
+# doesn't type a JSON-array response, which trips level-3 checking. Tighten this
+# back up (raise to 2/3 + annotate) once the simulator shows the real data shape.
+project.typecheck = 0

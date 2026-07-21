@@ -1,0 +1,49 @@
+{
+  "_comment": "Merge the `hooks` block below into ~/.claude/settings.json (global, so every project reports to the garden). Adjust the absolute path if you move the repo. `timeout` on PreToolUse must exceed APPROVAL_TIMEOUT in the script.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          { "type": "command", "command": "/Users/alhuzwiri/Documents/lab/2026/notTouch/AgentGarden/hooks/agent-garden-hook.sh" }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          { "type": "command", "command": "/Users/alhuzwiri/Documents/lab/2026/notTouch/AgentGarden/hooks/agent-garden-hook.sh" }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          { "type": "command", "command": "/Users/alhuzwiri/Documents/lab/2026/notTouch/AgentGarden/hooks/agent-garden-hook.sh", "timeout": 300 }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          { "type": "command", "command": "/Users/alhuzwiri/Documents/lab/2026/notTouch/AgentGarden/hooks/agent-garden-hook.sh" }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          { "type": "command", "command": "/Users/alhuzwiri/Documents/lab/2026/notTouch/AgentGarden/hooks/agent-garden-hook.sh" }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "/Users/alhuzwiri/Documents/lab/2026/notTouch/AgentGarden/hooks/agent-garden-hook.sh", "timeout": 300 }
+        ]
+      }
+    ]
+  }
+}

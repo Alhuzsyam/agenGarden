@@ -1,0 +1,16 @@
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Claude Code local settings (machine-specific)
+.claude/settings.local.json
+
+# Secrets — Config.mc holds the GardenServer token (copy Config.mc.example)
+garmin/GardenWatch/source/Config.mc
+
+# Build artifacts
+build/
+*.prg
+*.iq
+*.debug.xml
+DerivedData/
