@@ -158,6 +158,7 @@ class GardenView extends WatchUi.View {
             waitCount = data.size();
             if (firstId != null && !firstId.equals(pendId == null ? "" : pendId)) {
                 pendSeenAt = Time.now().value();   // reset countdown on a NEW approval
+                index = 0;                         // jump to the approval face so it's decidable
             }
             pendId = firstId;
             pendAgent = firstAgent;
@@ -569,7 +570,7 @@ class GardenView extends WatchUi.View {
 
         // button hints so you know which physical key does what
         dc.setColor(0x8B8B99, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(lxx, by + 40, fSmall(), "DOWN", mid);
+        dc.drawText(lxx, by + 40, fSmall(), "BACK", mid);
         dc.drawText(rxx, by + 40, fSmall(), "START", mid);
     }
 

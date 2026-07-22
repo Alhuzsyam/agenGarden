@@ -1,0 +1,59 @@
+{
+  "name": "agentgarden",
+  "displayName": "AgentGarden",
+  "description": "Monitor & approve your AI coding agents from VS Code — fleet, approvals, live status.",
+  "version": "0.1.0",
+  "publisher": "alhuzsyam",
+  "engines": { "vscode": "^1.84.0" },
+  "categories": ["Other"],
+  "activationEvents": ["onStartupFinished"],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      { "command": "agentgarden.newProject", "title": "AgentGarden: New Project" },
+      { "command": "agentgarden.openDashboard", "title": "AgentGarden: Open Dashboard" },
+      { "command": "agentgarden.decide", "title": "AgentGarden: Approve / Deny" },
+      { "command": "agentgarden.refresh", "title": "AgentGarden: Refresh" }
+    ],
+    "configuration": {
+      "title": "AgentGarden",
+      "properties": {
+        "agentgarden.serverUrl": {
+          "type": "string",
+          "default": "http://127.0.0.1:4141",
+          "description": "AgentGarden server URL (the macOS app or garden.exe)."
+        },
+        "agentgarden.token": {
+          "type": "string",
+          "default": "",
+          "description": "Bearer token. Leave empty to read ~/.agent-garden-token."
+        },
+        "agentgarden.registerWorkspace": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show this VS Code workspace as an agent in the fleet."
+        }
+      }
+    },
+    "viewsContainers": {
+      "activitybar": [
+        { "id": "agentgarden", "title": "AgentGarden", "icon": "media/pac.svg" }
+      ]
+    },
+    "views": {
+      "agentgarden": [
+        { "id": "agentgarden.fleet", "name": "Agents & Approvals" }
+      ]
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.84.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.4.0"
+  }
+}

@@ -1,8 +1,8 @@
 using Toybox.WatchUi;
 
 // Paging + approve. UP/DOWN buttons (or swipe) move between pages. On the
-// approval face: START = approve, DOWN = deny — physical buttons are more
-// reliable than tapping the ✕/✓ circles while moving. BACK exits.
+// approval face: START = approve, BACK = deny (BACK does NOT exit while a prompt
+// is waiting). DOWN also denies; tapping the ✕/✓ circles works too.
 class GardenDelegate extends WatchUi.BehaviorDelegate {
     var view;
 
@@ -11,12 +11,13 @@ class GardenDelegate extends WatchUi.BehaviorDelegate {
         view = v;
     }
 
-    // Low-level button handler: when a prompt is waiting, START approves and
-    // DOWN denies. Return false otherwise so normal paging/back still works.
+    // Low-level button handler: while a prompt is waiting, START/ENTER approves,
+    // BACK/ESC and DOWN deny. Return false otherwise so paging/back stay normal.
     function onKey(evt) {
         if (view.pendingApprovalActive()) {
             var k = evt.getKey();
             if (k == WatchUi.KEY_ENTER) { view.decideCurrent("allow"); return true; }
+            if (k == WatchUi.KEY_ESC)   { view.decideCurrent("deny");  return true; }
             if (k == WatchUi.KEY_DOWN)  { view.decideCurrent("deny");  return true; }
         }
         return false;
@@ -50,7 +51,9 @@ class GardenDelegate extends WatchUi.BehaviorDelegate {
         return false;
     }
 
+    // BACK = deny while a prompt waits; only exit when there's nothing to decide.
     function onBack() {
+        if (view.pendingApprovalActive()) { view.decideCurrent("deny"); return true; }
         WatchUi.popView(WatchUi.SLIDE_DOWN);
         return true;
     }
