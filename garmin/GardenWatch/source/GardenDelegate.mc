@@ -1,13 +1,25 @@
 using Toybox.WatchUi;
 
-// Paging + approve. Swipe left/right (touch) or up/down buttons move between
-// agents. START on a waiting agent opens an Allow/Deny menu. BACK exits.
+// Paging + approve. UP/DOWN buttons (or swipe) move between pages. On the
+// approval face: START = approve, DOWN = deny — physical buttons are more
+// reliable than tapping the ✕/✓ circles while moving. BACK exits.
 class GardenDelegate extends WatchUi.BehaviorDelegate {
     var view;
 
     function initialize(v) {
         BehaviorDelegate.initialize();
         view = v;
+    }
+
+    // Low-level button handler: when a prompt is waiting, START approves and
+    // DOWN denies. Return false otherwise so normal paging/back still works.
+    function onKey(evt) {
+        if (view.pendingApprovalActive()) {
+            var k = evt.getKey();
+            if (k == WatchUi.KEY_ENTER) { view.decideCurrent("allow"); return true; }
+            if (k == WatchUi.KEY_DOWN)  { view.decideCurrent("deny");  return true; }
+        }
+        return false;
     }
 
     function onNextPage() { view.next(); return true; }

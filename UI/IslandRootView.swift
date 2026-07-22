@@ -37,7 +37,7 @@ struct IslandRootView: View {
     var body: some View {
         Group {
             if state.expanded {
-                IslandView(store: store)
+                IslandView(store: store, state: state)
             } else {
                 CompactPillView(store: store)
             }
@@ -55,6 +55,7 @@ struct IslandRootView: View {
 /// The always-on compact notch: just the running-agent count, far left.
 struct CompactPillView: View {
     @ObservedObject var store: AgentStore
+    @ObservedObject private var theme = IslandTheme.shared
 
     private var anyAttention: Bool {
         store.agents.contains { $0.needsAttention }
@@ -64,7 +65,7 @@ struct CompactPillView: View {
         HStack {
             Text("\(store.agents.count)")
                 .font(.system(size: 18, weight: .light, design: .monospaced))
-                .foregroundStyle(anyAttention ? Color.orange : Color.white)
+                .foregroundStyle(anyAttention ? Color.orange : (theme.mode == "light" ? Color.black : Color.white))
             Spacer(minLength: 0)
             PatrolPacmanView()
         }
@@ -73,10 +74,11 @@ struct CompactPillView: View {
         .padding(.top, 5)
         .padding(.bottom, 11)
         .frame(maxWidth: .infinity)
-        .background(NotchShape(radius: 16).fill(Color.black.opacity(0.92)))
-        .overlay(NotchShape(radius: 16).strokeBorder(Color.white.opacity(0.12), lineWidth: 1))
+        .background(NotchShape(radius: 16).fill(theme.notchBG))
+        .overlay(NotchShape(radius: 16).strokeBorder(Color.primary.opacity(0.12), lineWidth: 1))
         .padding(.horizontal, 8)
         .padding(.bottom, 8)
+        .environment(\.colorScheme, theme.scheme)
     }
 }
 

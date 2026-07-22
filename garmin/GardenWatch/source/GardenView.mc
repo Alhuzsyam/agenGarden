@@ -566,6 +566,11 @@ class GardenView extends WatchUi.View {
         dc.drawLine(rxx - 10, by, rxx - 2, by + 8);
         dc.drawLine(rxx - 2, by + 8, rxx + 11, by - 9);
         dc.setPenWidth(1);
+
+        // button hints so you know which physical key does what
+        dc.setColor(0x8B8B99, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(lxx, by + 40, fSmall(), "DOWN", mid);
+        dc.drawText(rxx, by + 40, fSmall(), "START", mid);
     }
 
     // Font helpers — prefer bundled Roboto Mono, fall back to the system fonts.

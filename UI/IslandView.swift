@@ -4,6 +4,8 @@ import AppKit
 /// The expanded notch card with per-agent detail.
 struct IslandView: View {
     @ObservedObject var store: AgentStore
+    @ObservedObject private var theme = IslandTheme.shared
+    var state: IslandState? = nil
     @State private var showQR = false
 
     var body: some View {
@@ -48,9 +50,11 @@ struct IslandView: View {
 
             if showQR { QRPanelView() }
 
-            HStack {
+            HStack(spacing: 10) {
+                NewProjectButton(collapse: { state?.expanded = false })
                 LoginToggleView()
                 Spacer()
+                ThemeToggleButton()
                 Button(showQR ? "📱 hide QR" : "📱 QR") {
                     withAnimation(.easeOut(duration: 0.15)) { showQR.toggle() }
                 }
@@ -66,11 +70,11 @@ struct IslandView: View {
         }
         .padding(14)
         .frame(maxWidth: .infinity)
-        .background(NotchShape(radius: 18).fill(Color.black.opacity(0.88)))
-        .overlay(NotchShape(radius: 18).strokeBorder(Color.white.opacity(0.12), lineWidth: 1))
+        .background(NotchShape(radius: 18).fill(theme.notchBG))
+        .overlay(NotchShape(radius: 18).strokeBorder(Color.primary.opacity(0.12), lineWidth: 1))
         .padding(.horizontal, 8)
         .padding(.bottom, 8)
-        .environment(\.colorScheme, .dark)
+        .environment(\.colorScheme, theme.scheme)
     }
 }
 
@@ -137,7 +141,7 @@ struct QRPanelView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(10)
-        .background(RoundedRectangle(cornerRadius: 12).fill(Color.white.opacity(0.05)))
+        .background(RoundedRectangle(cornerRadius: 12).fill(Color.primary.opacity(0.05)))
     }
 }
 
@@ -210,7 +214,7 @@ struct AgentRowView: View {
         .padding(8)
         .background(
             RoundedRectangle(cornerRadius: 10)
-                .fill(pending != nil ? Color.orange.opacity(0.16) : Color.white.opacity(0.06))
+                .fill(pending != nil ? Color.orange.opacity(0.16) : Color.primary.opacity(0.06))
         )
     }
 
@@ -286,7 +290,7 @@ struct UsageStripView: View {
             }
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 3).fill(Color.white.opacity(0.08))
+                    RoundedRectangle(cornerRadius: 3).fill(Color.primary.opacity(0.08))
                     RoundedRectangle(cornerRadius: 3).fill(color)
                         .frame(width: geo.size.width * CGFloat(min(usage.pct, 1)))
                 }
@@ -309,7 +313,7 @@ struct UsageStripView: View {
             }
         }
         .padding(8)
-        .background(RoundedRectangle(cornerRadius: 10).fill(Color.white.opacity(0.05)))
+        .background(RoundedRectangle(cornerRadius: 10).fill(Color.primary.opacity(0.05)))
     }
 }
 

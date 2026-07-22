@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <iq:manifest xmlns:iq="http://www.garmin.com/xml/connectiq" version="3">
     <!-- App id was generated with `uuidgen`. Keep it stable across builds. -->
-    <iq:application id="4b495dfd41da46f8a0afcc09a090ab3d"
+    <iq:application id="81e9e1f307db434891a32873b5379f2e"
                    type="watch-app"
                    name="@Strings.AppName"
                    entry="GardenApp"

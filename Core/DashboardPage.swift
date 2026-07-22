@@ -28,12 +28,27 @@ enum DashboardPage {
     --red: #ea4335; --red-d: #c5221f; --red-soft: #fce8e6;
     --green: #34a853; --green-soft: #e6f4ea; --amber: #b06000; --amber-soft: #fef7e0;
     --line: #e0e2e6; --grey-soft: #f1f3f4; --side: #f4f9f5;
-    --canvas: #e8eaed; --pill: 50px;
+    --canvas: #e8eaed; --surface: #ffffff; --dot: #d2d5db; --pill: 50px;
+  }
+  /* dark theme — the viewer's OS preference, overridable by the header toggle */
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ink: #e8eaed; --muted: #9aa0a6; --faint: #6b7075;
+      --line: #2a2c30; --grey-soft: #26282c; --side: #16181b;
+      --canvas: #131417; --surface: #1e2023; --dot: #23262b;
+      --blue-soft: #1a2740; --red-soft: #3a1f1e; --green-soft: #17301f; --amber-soft: #3a2f12;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ink: #e8eaed; --muted: #9aa0a6; --faint: #6b7075;
+    --line: #2a2c30; --grey-soft: #26282c; --side: #16181b;
+    --canvas: #131417; --surface: #1e2023; --dot: #23262b;
+    --blue-soft: #1a2740; --red-soft: #3a1f1e; --green-soft: #17301f; --amber-soft: #3a2f12;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: var(--font); color: var(--ink); font-size: 15px; line-height: 1.5;
          -webkit-font-smoothing: antialiased; background: var(--canvas);
-         background-image: radial-gradient(#d2d5db 1.2px, transparent 1.2px); background-size: 26px 26px; }
+         background-image: radial-gradient(var(--dot) 1.2px, transparent 1.2px); background-size: 26px 26px; }
 
   .app { display: flex; min-height: 100vh; }
 
@@ -42,7 +57,7 @@ enum DashboardPage {
              padding: 22px 16px calc(16px + env(safe-area-inset-bottom));
              display: flex; flex-direction: column; gap: 6px; }
   .side-logo { display: flex; align-items: center; gap: 10px; padding: 0 8px 18px; }
-  .logo { width: 34px; height: 34px; border-radius: 9px; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.12);
+  .logo { width: 34px; height: 34px; border-radius: 9px; background: var(--surface); box-shadow: 0 1px 4px rgba(0,0,0,.12);
           display: flex; align-items: center; justify-content: center; overflow: hidden; flex: none; }
   .side-brand { font-weight: 700; font-size: 18px; }
   .nav-item { display: flex; align-items: center; gap: 12px; padding: 11px 14px; border-radius: 8px;
@@ -60,19 +75,30 @@ enum DashboardPage {
 
   /* main */
   .main { flex: 1; display: flex; flex-direction: column; min-width: 0; max-width: 1160px; margin: 0 auto; width: 100%; }
-  .topbar { height: 60px; border-bottom: 1px solid var(--line); background: rgba(255,255,255,.7);
+  .topbar { height: 60px; border-bottom: 1px solid var(--line); background: var(--surface);
             backdrop-filter: blur(6px); display: flex; align-items: center; padding: 0 22px; gap: 14px;
             position: sticky; top: 0; z-index: 10; padding-top: env(safe-area-inset-top); }
-  .topbar-title { font-size: 20px; font-weight: 700; }
+  .topbar-title { font-size: 20px; font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .topbar-pill { font-size: 13px; color: var(--muted); background: var(--grey-soft); padding: 4px 10px; border-radius: 12px; white-space: nowrap; }
-  .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 14px; }
-  .bell { position: relative; width: 36px; height: 36px; border-radius: 50%; background: var(--grey-soft);
-          display: flex; align-items: center; justify-content: center; font-size: 15px; }
-  .bell.has::after { content: ''; position: absolute; top: 6px; right: 7px; width: 9px; height: 9px;
-                     border-radius: 50%; background: var(--red); border: 2px solid #fff; }
-  .avatar-me { width: 36px; height: 36px; border-radius: 50%; background: var(--blue-d); color: #fff;
-               display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; }
-
+  .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 10px; flex: none; }
+  .tbtn { border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: var(--pill);
+          padding: 8px 14px; font: 500 13px var(--font); cursor: pointer; white-space: nowrap; }
+  .tbtn.primary { background: var(--blue); color: #fff; border-color: transparent; }
+  .tbtn.icon { padding: 8px 10px; font-size: 15px; line-height: 1; }
+  .tbtn:active { transform: translateY(1px); }
+  .tbtn:disabled { opacity: .55; }
+  .lbl-short { display: none; }
+  .modal-back { position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,.45); display: none; align-items: center; justify-content: center; padding: 20px; }
+  .modal-back.open { display: flex; }
+  .modal { background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 20px; padding: 22px;
+           width: 100%; max-width: 380px; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 20px 60px rgba(0,0,0,.4); }
+  .modal-h { font-size: 17px; font-weight: 700; }
+  .modal label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--muted); }
+  .modal input { height: 42px; border: 1px solid var(--line); border-radius: 10px; padding: 0 12px; font: 14px var(--mono);
+                 background: var(--canvas); color: var(--ink); outline: none; }
+  .modal input:focus { border-color: var(--blue); }
+  .modal-err { font-size: 12px; color: var(--red); min-height: 14px; }
+  .modal-btns { display: flex; gap: 10px; justify-content: flex-end; }
   .cols { flex: 1; display: flex; gap: 20px; padding: 22px; min-height: 0; align-items: flex-start; }
   .col-main { flex: 1.4; display: flex; flex-direction: column; gap: 20px; min-width: 0; }
   .col-side { flex: 1; min-width: 0; }
@@ -124,19 +150,19 @@ enum DashboardPage {
   @media (prefers-reduced-motion: reduce) { .mascot, .mascot * { animation: none !important; } }
 
   /* "All clear" state (mirrors the watch idle face) */
-  .allclear { background: #fff; border: 1px solid var(--line); border-radius: 24px; padding: 26px;
+  .allclear { background: var(--surface); border: 1px solid var(--line); border-radius: 24px; padding: 26px;
               display: flex; flex-direction: column; align-items: center; gap: 6px; box-shadow: 0 4px 14px rgba(0,0,0,.05); }
   .allclear .ac-t { font-size: 20px; font-weight: 700; color: var(--blue); }
   .allclear .ac-s { font-size: 13px; color: var(--muted); }
 
   /* panels */
-  .panel { background: #fff; border: 1px solid var(--line); border-radius: 24px; overflow: hidden; }
+  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 24px; overflow: hidden; }
   .phead { display: flex; align-items: center; gap: 8px; padding: 16px 20px; font-size: 15px; font-weight: 700; border-bottom: 1px solid var(--line); }
   .live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); animation: blink 1.4s infinite; }
   @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: .25; } }
 
   /* hero approval */
-  .hero { background: #fff; border: 2px solid var(--red); border-radius: 24px; padding: 22px; box-shadow: 0 6px 20px rgba(234,67,53,.12); }
+  .hero { background: var(--surface); border: 2px solid var(--red); border-radius: 24px; padding: 22px; box-shadow: 0 6px 20px rgba(234,67,53,.12); }
   .hero + .hero { margin-top: 16px; }
   .hhead { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
   .risk { font-family: var(--mono); font-size: 11px; font-weight: 500; letter-spacing: .6px; padding: 5px 10px; border-radius: 6px; }
@@ -179,7 +205,7 @@ enum DashboardPage {
   .feed-empty { padding: 22px 20px; text-align: center; color: var(--faint); font-size: 13px; }
 
   /* usage card */
-  .ucard { background: #fff; border: 1px solid var(--line); border-radius: 24px; padding: 16px 20px; }
+  .ucard { background: var(--surface); border: 1px solid var(--line); border-radius: 24px; padding: 16px 20px; }
   .uhead { display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: var(--muted); }
   .uhead b { font-family: var(--mono); font-size: 14px; }
   .ubar { height: 7px; background: var(--grey-soft); border-radius: 4px; margin: 9px 0; overflow: hidden; }
@@ -188,18 +214,18 @@ enum DashboardPage {
   .uspark span { flex: 1; border-radius: 2px; opacity: .8; }
 
   /* terminal overlay */
-  #terminal { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; background: #fff; border-radius: 20px 20px 0 0;
+  #terminal { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; background: var(--surface); border-radius: 20px 20px 0 0;
               box-shadow: 0 -12px 40px rgba(0,0,0,.25); transform: translateY(105%); transition: transform .25s;
               padding: 12px 14px calc(14px + env(safe-area-inset-bottom)); max-height: 82vh; display: flex; flex-direction: column;
               max-width: 720px; margin: 0 auto; }
   #terminal.open { transform: translateY(0); }
   .thead { display: flex; align-items: center; margin-bottom: 10px; }
   .tname { font-family: var(--mono); font-size: 14px; font-weight: 500; }
-  .tclose { margin-left: auto; border: 1px solid var(--line); background: #fff; border-radius: var(--pill); padding: 6px 14px; font-size: 12px; color: var(--muted); cursor: pointer; }
+  .tclose { margin-left: auto; border: 1px solid var(--line); background: var(--surface); border-radius: var(--pill); padding: 6px 14px; font-size: 12px; color: var(--muted); cursor: pointer; }
   .term { flex: 1; background: #202124; color: #f1f3f4; border-radius: 12px; padding: 12px; font-family: var(--mono);
           font-size: 12px; line-height: 1.4; white-space: pre-wrap; overflow: auto; min-height: 180px; }
   .keys { display: flex; flex-wrap: wrap; gap: 7px; margin: 10px 0; }
-  .keys button { border: 1px solid var(--line); background: #fff; border-radius: 9px; padding: 8px 12px; font-size: 13px; font-family: var(--mono); cursor: pointer; color: var(--ink); }
+  .keys button { border: 1px solid var(--line); background: var(--surface); border-radius: 9px; padding: 8px 12px; font-size: 13px; font-family: var(--mono); cursor: pointer; color: var(--ink); }
   .keys .y { background: var(--green-soft); border-color: transparent; color: #1e7e34; }
   .keys .n { background: var(--red-soft); border-color: transparent; color: var(--red-d); }
   .tinput { display: flex; gap: 8px; }
@@ -223,7 +249,17 @@ enum DashboardPage {
     .cols { flex-direction: column; padding: 14px; gap: 16px; }
     .col-side { position: static; width: 100%; }
     .col-main { width: 100%; }
-    .topbar { padding-left: 16px; padding-right: 16px; }
+    .topbar { padding: 0 12px; gap: 8px; }
+    .topbar-title { font-size: 16px; }
+    .topbar-pill { display: none; }
+    .topbar-right { gap: 6px; }
+    .tbtn.primary { padding: 8px 12px; }
+    .lbl-full { display: none; }
+    .lbl-short { display: inline; }
+  }
+  /* very narrow: drop the wordmark so the actions always fit */
+  @media (max-width: 380px) {
+    .topbar-title { display: none; }
   }
 </style>
 </head>
@@ -234,6 +270,10 @@ enum DashboardPage {
       <div class="logo" id="logo"></div>
       <div class="topbar-title">AgentGarden</div>
       <div class="topbar-pill" id="topPill"></div>
+      <div class="topbar-right">
+        <button class="tbtn primary" onclick="openNew()"><span class="lbl-full">+ New project</span><span class="lbl-short">+ New</span></button>
+        <button class="tbtn icon" id="themeBtn" onclick="toggleTheme()" title="Ganti tema">🌙</button>
+      </div>
     </div>
     <div class="cols">
       <div class="col-main">
@@ -252,6 +292,20 @@ enum DashboardPage {
       </div>
     </div>
   </main>
+</div>
+
+<div id="newModal" class="modal-back">
+  <div class="modal">
+    <div class="modal-h">Project baru</div>
+    <label>Nama <input id="npName" placeholder="mis. api-refactor" autocomplete="off" spellcheck="false"></label>
+    <label>Folder <span style="opacity:.6">(opsional — default ~/nama)</span>
+      <input id="npDir" placeholder="~/proyek/api-refactor" autocomplete="off" spellcheck="false"></label>
+    <div class="modal-err" id="npErr"></div>
+    <div class="modal-btns">
+      <button class="tbtn" onclick="closeNew()">Batal</button>
+      <button class="tbtn primary" id="npGo" onclick="submitNew()">Buat &amp; buka terminal</button>
+    </div>
+  </div>
 </div>
 
 <div id="terminal"></div>
@@ -473,6 +527,38 @@ async function tick() {
     online();
   } catch { offline('koneksi ke Mac putus — cek Tailscale'); }
 }
+// theme: OS default via CSS, overridden by the header toggle (persisted)
+function isDark() { const t = document.documentElement.getAttribute('data-theme');
+  return t === 'dark' || (!t && matchMedia('(prefers-color-scheme: dark)').matches); }
+function applyTheme(t) {
+  if (t) document.documentElement.setAttribute('data-theme', t);
+  else document.documentElement.removeAttribute('data-theme');
+  const b = document.getElementById('themeBtn'); if (b) b.textContent = isDark() ? '☀️' : '🌙';
+}
+function toggleTheme() { const t = isDark() ? 'light' : 'dark'; localStorage.setItem('gardenTheme', t); applyTheme(t); }
+applyTheme(localStorage.getItem('gardenTheme'));
+
+// new project: spawn a detached Claude session on the Mac, then open its terminal
+function openNew() { document.getElementById('npErr').textContent = ''; document.getElementById('newModal').classList.add('open'); setTimeout(() => document.getElementById('npName').focus(), 50); }
+function closeNew() { document.getElementById('newModal').classList.remove('open'); }
+async function submitNew() {
+  const name = document.getElementById('npName').value.trim();
+  const dir = document.getElementById('npDir').value.trim();
+  const err = document.getElementById('npErr'), go = document.getElementById('npGo');
+  if (!name) { err.textContent = 'Kasih nama project dulu.'; return; }
+  go.disabled = true; go.textContent = 'Membuat…';
+  try {
+    const r = await fetch('/new-project', { method: 'POST', headers: auth({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ name, dir: dir || null }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.ok) { err.textContent = j.error || 'Gagal bikin project.'; return; }
+    document.getElementById('npName').value = ''; document.getElementById('npDir').value = '';
+    closeNew(); tick();
+    setTimeout(() => openTerminal(j.agent || name), 500);
+  } catch { err.textContent = 'Koneksi ke Mac putus.'; }
+  finally { go.disabled = false; go.textContent = 'Buat & buka terminal'; }
+}
+
 document.getElementById('logo').innerHTML = mascotSVG('avatar', 30);
 tick();
 setInterval(tick, 1500);

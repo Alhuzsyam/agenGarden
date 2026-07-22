@@ -240,6 +240,22 @@ final class GardenServer {
             } else {
                 respond(conn, status: "400 Bad Request", body: "{\"error\":\"bad decision json\"}")
             }
+        case ("POST", "/new-project"):
+            if let payload = try? JSONDecoder().decode(NewProjectRequest.self, from: req.body),
+               !payload.name.trimmingCharacters(in: .whitespaces).isEmpty {
+                let name = payload.name.trimmingCharacters(in: .whitespaces)
+                let ok = self.spawnProject(name: name, dir: payload.dir)
+                if ok {
+                    DispatchQueue.main.async {
+                        self.store.apply(GardenEvent(agent: name, event: "start", task: payload.dir, tool: nil))
+                    }
+                    respond(conn, status: "200 OK", body: "{\"ok\":true,\"agent\":\"\(name)\"}")
+                } else {
+                    respond(conn, status: "500 Internal Server Error", body: "{\"error\":\"spawn failed — cek tmux/claude di PATH\"}")
+                }
+            } else {
+                respond(conn, status: "400 Bad Request", body: "{\"error\":\"need a project name\"}")
+            }
         case ("POST", "/prompt"):
             if let payload = try? JSONDecoder().decode(PromptRequest.self, from: req.body) {
                 DispatchQueue.main.async {
@@ -304,6 +320,28 @@ final class GardenServer {
         }
     }
 
+    /// Start a detached Claude Code session + phone bridge for a new project via
+    /// hooks/garden-spawn.sh, run through a login shell so tmux/claude are on
+    /// PATH. Name/dir are passed as positional args ($1/$2) — never interpolated
+    /// into the command string — so a project name can't inject shell.
+    private func spawnProject(name: String, dir: String?) -> Bool {
+        let hooks = ProcessInfo.processInfo.environment["GARDEN_HOOKS_DIR"]
+            ?? UserDefaults.standard.string(forKey: "gardenHooksDir")
+            ?? "\(NSHomeDirectory())/Documents/lab/2026/notTouch/AgentGarden/hooks"
+        let script = "\(hooks)/garden-spawn.sh"
+        guard FileManager.default.isExecutableFile(atPath: script) else { return false }
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/bin/bash")
+        p.arguments = ["-lc", "\"\(script)\" \"$1\" \"$2\"", "garden-spawn", name, dir ?? ""]
+        do {
+            try p.run()
+            p.waitUntilExit()
+            return p.terminationStatus == 0
+        } catch {
+            return false
+        }
+    }
+
     private func respond(_ conn: NWConnection, status: String, body: String) {
         respond(conn, status: status, body: Data(body.utf8),
                 contentType: "application/json")
@@ -320,6 +358,11 @@ final class GardenServer {
         out.append(body)
         conn.send(content: out, completion: .contentProcessed { _ in conn.cancel() })
     }
+}
+
+private struct NewProjectRequest: Codable {
+    let name: String
+    let dir: String?
 }
 
 private struct ApprovalRequest: Codable {
