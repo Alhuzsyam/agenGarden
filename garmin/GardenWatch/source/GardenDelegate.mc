@@ -20,38 +20,22 @@ class GardenDelegate extends WatchUi.BehaviorDelegate {
         return true;
     }
 
-    // START / tap: if the current agent is waiting, ask Allow or Deny.
+    // START = approve the pending prompt.
     function onSelect() {
-        var id = view.currentApprovalId();
-        if (id != null) {
-            var menu = new WatchUi.Menu2({ :title => "Approve?" });
-            menu.addItem(new WatchUi.MenuItem("Allow", null, :allow, null));
-            menu.addItem(new WatchUi.MenuItem("Deny", null, :deny, null));
-            WatchUi.pushView(menu, new ApproveMenuDelegate(view, id), WatchUi.SLIDE_UP);
+        if (view.pendingApprovalActive()) { view.decideCurrent("allow"); }
+        return true;
+    }
+
+    // Tap the ✕ (left) / ✓ (right) buttons on the approval face.
+    function onTap(evt) {
+        if (view.pendingApprovalActive()) {
+            var c = evt.getCoordinates();
+            if (c[1] > 210) {   // in the button row
+                view.decideCurrent(c[0] < 195 ? "deny" : "allow");
+                return true;
+            }
         }
-        return true;
-    }
-
-    function onBack() {
-        WatchUi.popView(WatchUi.SLIDE_DOWN);
-        return true;
-    }
-}
-
-// Handles the Allow/Deny menu: posts the verdict and pops back.
-class ApproveMenuDelegate extends WatchUi.Menu2InputDelegate {
-    var view;
-    var id;
-
-    function initialize(v, approvalId) {
-        Menu2InputDelegate.initialize();
-        view = v;
-        id = approvalId;
-    }
-
-    function onSelect(item) {
-        view.decide(id, item.getId() == :allow ? "allow" : "deny");
-        WatchUi.popView(WatchUi.SLIDE_DOWN);
+        return false;
     }
 
     function onBack() {

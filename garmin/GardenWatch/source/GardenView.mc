@@ -4,6 +4,8 @@ using Toybox.Communications;
 using Toybox.Timer;
 using Toybox.Attention;
 using Toybox.Lang;
+using Toybox.System;
+using Toybox.Time;
 
 // Pixel-art arcade dashboard. One agent per page; swipe to move. Hero sprite is
 // a pixelated Pac-Man that chomps (colored by state); when an agent needs you
@@ -25,10 +27,28 @@ class GardenView extends WatchUi.View {
     var usagePct = 0.0;
     var usageSpark = [];
     var usageTop = "";
+    var usageModelNames = [];
+    var usageModelCosts = [];
     var usageLoaded = false;
     var buzzedBudget = false;
+    // approval face
+    var pendId = null;
+    var pendAgent = null;
+    var pendTool = null;
+    var pendDetail = null;
+    var pendSeenAt = 0;      // device epoch secs when this approval first seen
+    var waitCount = 0;
+    var buzzedApproval = false;
+    var successUntil = 0;    // device epoch secs; idle face celebrates until then
+    var monoS = null;        // custom Roboto Mono font (loaded in onLayout)
+    var monoXS = null;
 
     function initialize() { View.initialize(); }
+
+    function onLayout(dc) {
+        monoS = WatchUi.loadResource(Rez.Fonts.MonoS);
+        monoXS = WatchUi.loadResource(Rez.Fonts.MonoXS);
+    }
 
     function onShow() {
         pollTimer = new Timer.Timer();
@@ -70,7 +90,17 @@ class GardenView extends WatchUi.View {
             usageBudget = fnum(data["budget"]);
             usagePct = fnum(data["pct"]);
             var bm = data["byModel"];
-            usageTop = (bm instanceof Lang.Array && bm.size() > 0) ? bm[0]["model"].toString() : "";
+            var names = [];
+            var costs = [];
+            if (bm instanceof Lang.Array) {
+                for (var i = 0; i < bm.size(); i++) {
+                    names.add(bm[i]["model"].toString());
+                    costs.add(fnum(bm[i]["cost"]));
+                }
+            }
+            usageModelNames = names;
+            usageModelCosts = costs;
+            usageTop = names.size() > 0 ? names[0] : "";
             var days = data["days"];
             var sp = [];
             if (days instanceof Lang.Array) {
@@ -84,7 +114,7 @@ class GardenView extends WatchUi.View {
         }
     }
 
-    function totalPages() { return agents.size() + 1; }   // agents + 1 usage page
+    function totalPages() { return 3; }   // 0 = approval/idle face · 1 = agents list · 2 = usage
 
     function onAgents(code, data) {
         lastCode = code;
@@ -109,14 +139,56 @@ class GardenView extends WatchUi.View {
     function onApprovals(code, data) {
         if (code == 200 && data instanceof Lang.Array) {
             var m = {};
+            var firstId = null;
+            var firstAgent = null;
+            var firstTool = null;
+            var firstDetail = null;
             for (var i = 0; i < data.size(); i++) {
                 var ap = data[i];
                 var ag = ap["agent"];
                 if (ag != null) { m[ag] = ap["id"]; }
+                if (i == 0) {
+                    firstId = ap["id"];
+                    firstAgent = ag;
+                    firstTool = ap["tool"];
+                    firstDetail = ap["detail"];
+                }
             }
             approvals = m;
+            waitCount = data.size();
+            if (firstId != null && !firstId.equals(pendId == null ? "" : pendId)) {
+                pendSeenAt = Time.now().value();   // reset countdown on a NEW approval
+            }
+            pendId = firstId;
+            pendAgent = firstAgent;
+            pendTool = firstTool;
+            pendDetail = firstDetail;
+            if (pendId != null && !buzzedApproval) { buzz(); buzzedApproval = true; }
+            if (pendId == null) { buzzedApproval = false; }
             WatchUi.requestUpdate();
         }
+    }
+
+    function pendingApprovalActive() { return index == 0 && pendId != null; }
+    function decideCurrent(v) {
+        if (pendId != null) {
+            if (v.equals("allow")) { successUntil = Time.now().value() + 3; }
+            decide(pendId, v);
+        }
+    }
+    function riskInfo() {
+        var d = ((pendDetail == null ? "" : pendDetail) + " " + (pendTool == null ? "" : pendTool)).toLower();
+        if (d.find("--force") != null || d.find("rm ") != null || d.find("push") != null
+            || d.find("sudo") != null || d.find("delete") != null || d.find("drop") != null) {
+            return ["HIGH", 0xF28B82];
+        }
+        if (d.find("edit") != null || d.find("write") != null) { return ["MED", 0xFDD835]; }
+        return ["LOW", 0x8AB4F8];
+    }
+    function remainSec() {
+        if (pendId == null) { return 0; }
+        var rem = 280 - (Time.now().value() - pendSeenAt);
+        return rem < 0 ? 0 : rem;
     }
 
     // POST a verdict from the wrist.
@@ -151,6 +223,19 @@ class GardenView extends WatchUi.View {
     function truthy(a, key) { var v = a[key]; return v != null && v == true; }
     function str(a, key, dflt) { var v = a[key]; return (v == null) ? dflt : v.toString(); }
     function trunc(s, n) { return s.length() <= n ? s : s.substring(0, n - 1) + "…"; }
+    function wrap(s, perLine, maxLines) {
+        var lines = [];
+        var rest = s;
+        while (rest.length() > 0 && lines.size() < maxLines) {
+            if (rest.length() <= perLine) { lines.add(rest); break; }
+            lines.add(rest.substring(0, perLine));
+            rest = rest.substring(perLine, rest.length());
+        }
+        if (rest.length() > perLine && lines.size() == maxLines) {
+            lines[maxLines - 1] = lines[maxLines - 1].substring(0, perLine - 1) + "…";
+        }
+        return lines;
+    }
 
     function stateOf(a) {
         if (truthy(a, "isError"))        { return ["GAME OVER", Graphics.COLOR_RED]; }
@@ -262,37 +347,94 @@ class GardenView extends WatchUi.View {
         }
     }
 
+    // A HALF-circle (top semicircle) arc: darker track over the top 180°, then a
+    // colored arc filling from the left (9 o'clock) by `frac`.
+    function drawSemiRing(dc, cx, cy, r, frac, color) {
+        var f = frac;
+        if (f < 0) { f = 0; }
+        if (f > 1.0) { f = 1.0; }
+        dc.setPenWidth(15);
+        dc.setColor(0xC77B22, Graphics.COLOR_TRANSPARENT);   // darker-orange track
+        dc.drawArc(cx, cy, r, Graphics.ARC_COUNTER_CLOCKWISE, 180, 0);   // top half
+        if (f > 0) {
+            dc.setColor(color, Graphics.COLOR_TRANSPARENT);
+            dc.drawArc(cx, cy, r, Graphics.ARC_COUNTER_CLOCKWISE, 180, 180 - 180 * f);
+        }
+        dc.setPenWidth(1);
+    }
+
+    function shortModel(m) {
+        if (m == null) { return "?"; }
+        var i = m.find("claude-");
+        return (i != null && i == 0) ? m.substring(7, m.length()) : m;
+    }
+
+    // "AgentGarden" with a small Pac-Man chomping across it, left to right, on
+    // loop. Draws the word (green), erases the part left of Pac-Man with the
+    // background, then draws the little chomper at the eating edge.
+    // Solid (smooth) Pac-Man: filled circle with a wedge mouth cut to the
+    // background, plus an eye. Chomps as `open` (0..1) animates.
+    function drawPacmanSolid(dc, cx, cy, r, color, open) {
+        dc.setColor(color, Graphics.COLOR_TRANSPARENT);
+        dc.fillCircle(cx, cy, r);
+        var half = (r * (12 + (open * 60).toNumber())) / 100;
+        var mx = cx + r + 3;
+        dc.setColor(0x16161E, Graphics.COLOR_TRANSPARENT);   // cut mouth to bg
+        dc.fillPolygon([[cx, cy], [mx, cy - half], [mx, cy + half]]);
+        dc.fillCircle(cx - r / 5, cy - r / 2, r / 6);         // eye
+    }
+
+    // Page 2 — model spend, notouch dark+mono style: a segmented ring per model,
+    // today's total in the centre, model + budget status below. Proportional:
+    // ring hero, big $ total, then smaller model/budget lines.
     function drawUsagePage(dc, cx, w, h) {
-        var col = usageColor();
         var mid = Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER;
+        var palette = [0xBADC58, 0xF5F5F5, 0x8AB4F8, 0x8B8B99, 0x5A5A66];
+        var cy = 150;
+        var r = 96;
+        var bcol = usagePct >= 1.0 ? 0xEA4335 : (usagePct >= 0.8 ? 0xFDD835 : 0xBADC58);
 
-        dc.setColor(Graphics.COLOR_LT_GRAY, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(cx, 66, Graphics.FONT_TINY, "SPEND HARI INI", mid);
+        dc.setColor(0x16161E, 0x16161E);
+        dc.clear();
 
-        dc.setColor(col, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(cx, 118, Graphics.FONT_NUMBER_MEDIUM, "$" + usageToday.format("%.2f"), mid);
+        // track + per-model segments
+        dc.setPenWidth(18);
+        dc.setColor(0x2B2B36, Graphics.COLOR_TRANSPARENT);
+        dc.drawArc(cx, cy, r, Graphics.ARC_CLOCKWISE, 90, -269);
+        var total = usageToday > 0 ? usageToday : 0.0001;
+        var n = usageModelCosts.size();
+        if (n > 5) { n = 5; }
+        var startDeg = 90.0;
+        for (var i = 0; i < n; i++) {
+            var frac = usageModelCosts[i] / total;
+            if (frac > 0.001) {
+                var endDeg = startDeg - 360.0 * frac;
+                dc.setColor(palette[i], Graphics.COLOR_TRANSPARENT);
+                dc.drawArc(cx, cy, r, Graphics.ARC_CLOCKWISE, startDeg, endDeg);
+                startDeg = endDeg;
+            }
+        }
+        dc.setPenWidth(1);
 
-        dc.setColor(Graphics.COLOR_DK_GRAY, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(cx, 165, Graphics.FONT_TINY, "budget $" + usageBudget.format("%.0f"), mid);
-
-        // progress bar
-        var bw = 220;
-        var bx = cx - bw / 2;
-        var by = 190;
-        dc.setColor(Graphics.COLOR_DK_GRAY, Graphics.COLOR_TRANSPARENT);
-        dc.fillRectangle(bx, by, bw, 12);
-        var p = usagePct;
-        if (p > 1.0) { p = 1.0; }
-        dc.setColor(col, Graphics.COLOR_TRANSPARENT);
-        dc.fillRectangle(bx, by, (bw * p).toNumber(), 12);
-
-        if (usagePct >= 0.8) {
-            dc.setColor(col, Graphics.COLOR_TRANSPARENT);
-            dc.drawText(cx, 228, Graphics.FONT_SMALL,
-                usagePct >= 1.0 ? "OVER BUDGET" : "tinggal dikit", mid);
+        // centre: big $ total + "today"
+        if (!usageLoaded) {
+            dc.setColor(0x8B8B99, Graphics.COLOR_TRANSPARENT);
+            dc.drawText(cx, cy, fSmall(), "loading…", mid);
+        } else {
+            dc.setColor(bcol, Graphics.COLOR_TRANSPARENT);
+            dc.drawText(cx, cy - 12, fTitle(), "$" + usageToday.format("%.2f"), mid);
+            dc.setColor(0x8B8B99, Graphics.COLOR_TRANSPARENT);
+            dc.drawText(cx, cy + 20, fSmall(), "today", mid);
         }
 
-        drawSpark(dc, cx, 296, col);   // bars grow UP from this baseline
+        // below ring: top model (kept) + budget status
+        dc.setColor(0xBADC58, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(cx, 268, fSmall(), shortModel(usageTop), mid);
+        var status = usagePct >= 1.0 ? "OVER BUDGET"
+                   : (usagePct >= 0.8 ? "tinggal dikit"
+                   : "$" + usageBudget.format("%.0f") + " budget");
+        dc.setColor(usagePct >= 0.8 ? bcol : 0x8B8B99, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(cx, 294, fSmall(), status, mid);
     }
 
     // ---- drawing ----
@@ -311,40 +453,197 @@ class GardenView extends WatchUi.View {
             return;
         }
 
-        // last page (or empty garden) = usage/spend summary
-        if (index >= agents.size()) {
+        // page 1 = full agent list · page 2 = usage (spend rings)
+        if (index == 1) {
+            drawAgentsList(dc, cx, w, h);
+            drawPellets(dc, cx, 322, 3, index);
+            return;
+        }
+        if (index == 2) {
             drawUsagePage(dc, cx, w, h);
-            drawPellets(dc, cx, 322, totalPages(), index);
+            drawPellets(dc, cx, 322, 3, index);
             return;
         }
 
-        var a = agents[index];
-        var st = stateOf(a);
-        var color = st[1];
-        var attn = truthy(a, "needsAttention");
+        // page 0 = approval prompt if something's waiting, else idle "All clear"
+        if (pendId != null) {
+            drawApprovalFace(dc, cx, h);
+        } else {
+            drawIdleFace(dc, cx, h);
+        }
+        drawPellets(dc, cx, 322, 3, index);
+    }
+
+    // Page 1 — every agent as a row: status dot + name + short state. Shows up to
+    // 5, then a "+N more" tail so nothing is hidden from the count.
+    function drawAgentsList(dc, cx, w, h) {
+        var midL = Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER;
+        var midR = Graphics.TEXT_JUSTIFY_RIGHT | Graphics.TEXT_JUSTIFY_VCENTER;
         var mid = Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER;
 
-        // hero (centered at y=100): ghost when it needs you, else chomping Pac-Man
-        if (attn) {
-            drawGhostPixel(dc, cx, 100, 11, Graphics.COLOR_RED);
-        } else {
-            drawPacmanPixel(dc, cx, 100, 60, 12, color, k);
+        dc.setColor(0x9AA0A6, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(cx, 74, fSmall(), "AGENTS · " + agents.size().format("%d"), mid);
+
+        if (agents.size() == 0) {
+            dc.setColor(0x8AB4F8, Graphics.COLOR_TRANSPARENT);
+            dc.drawText(cx, 190, fTitle(), "No agents", mid);
+            return;
         }
 
-        // evenly-spaced text rows, all vertically centered on their y
-        dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(cx, 200, Graphics.FONT_MEDIUM, trunc(str(a, "id", "agent"), 16), mid);
+        var n = agents.size();
+        var shown = n > 5 ? 5 : n;
+        var y = 118;
+        for (var i = 0; i < shown; i++) {
+            var a = agents[i];
+            var st = stateOf(a);                       // [label, color]
+            var short = "run";
+            if (truthy(a, "isError"))            { short = "err"; }
+            else if (truthy(a, "needsAttention")) { short = "wait"; }
+            else if (truthy(a, "isDone"))         { short = "done"; }
+            dc.setColor(st[1], Graphics.COLOR_TRANSPARENT);
+            dc.fillCircle(70, y, 6);
+            dc.setColor(0xF4F4F8, Graphics.COLOR_TRANSPARENT);
+            dc.drawText(88, y, fSmall(), trunc(str(a, "id", "agent"), 13), midL);
+            dc.setColor(st[1], Graphics.COLOR_TRANSPARENT);
+            dc.drawText(w - 60, y, fSmall(), short, midR);
+            y += 40;
+        }
+        if (n > 5) {
+            dc.setColor(0x9AA0A6, Graphics.COLOR_TRANSPARENT);
+            dc.drawText(cx, y + 2, fSmall(), "+" + (n - 5).format("%d") + " more", mid);
+        }
+    }
 
-        if (!attn || animPhase < 6) {
-            dc.setColor(color, Graphics.COLOR_TRANSPARENT);
-            dc.drawText(cx, 240, Graphics.FONT_SMALL, st[0], mid);
+    // Design face #1 — approval prompt: red countdown ring, risk + timer, agent,
+    // command, and ✕ / ✓ buttons.
+    function drawApprovalFace(dc, cx, h) {
+        var mid = Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER;
+        var cy = 195;
+        var ri = riskInfo();
+        var s = remainSec();
+        var frac = s / 280.0;
+
+        // countdown ring
+        dc.setPenWidth(12);
+        dc.setColor(0x2A2A2C, Graphics.COLOR_TRANSPARENT);
+        dc.drawArc(cx, cy, 150, Graphics.ARC_CLOCKWISE, 90, -269);
+        if (frac > 0) {
+            dc.setColor(0xEA4335, Graphics.COLOR_TRANSPARENT);
+            dc.drawArc(cx, cy, 150, Graphics.ARC_CLOCKWISE, 90, 90 - 360 * frac);
+        }
+        dc.setPenWidth(1);
+
+        // risk · countdown
+        var cd = (s / 60).format("%d") + ":" + (s % 60).format("%02d");
+        dc.setColor(ri[1], Graphics.COLOR_TRANSPARENT);
+        dc.drawText(cx, 106, fSmall(), "● " + ri[0] + " · " + cd, mid);
+
+        // agent (yellow)
+        dc.setColor(0xFDD835, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(cx, 140, fTitle(), pendAgent == null ? "?" : pendAgent.toString(), mid);
+
+        // command (white, up to 2 lines) — mono is wider, so wrap tighter
+        var lines = wrap(pendDetail == null ? "" : pendDetail.toString(), 16, 2);
+        dc.setColor(0xE8EAED, Graphics.COLOR_TRANSPARENT);
+        var ty = 176;
+        for (var i = 0; i < lines.size(); i++) {
+            dc.drawText(cx, ty, fSmall(), lines[i], mid);
+            ty += 22;
         }
 
-        if (currentApprovalId() != null) {
-            dc.setColor(Graphics.COLOR_YELLOW, Graphics.COLOR_TRANSPARENT);
-            dc.drawText(cx, 274, Graphics.FONT_XTINY, "START = approve", mid);
-        }
+        // buttons: ✕ deny (left, red) · ✓ allow (right, green)
+        var by = 268;
+        var lxx = cx - 46;
+        var rxx = cx + 46;
+        dc.setColor(0xEA4335, Graphics.COLOR_TRANSPARENT);
+        dc.fillCircle(lxx, by, 27);
+        dc.setColor(0x34A853, Graphics.COLOR_TRANSPARENT);
+        dc.fillCircle(rxx, by, 27);
+        dc.setColor(0xFFFFFF, Graphics.COLOR_TRANSPARENT);
+        dc.setPenWidth(4);
+        dc.drawLine(lxx - 9, by - 9, lxx + 9, by + 9);
+        dc.drawLine(lxx - 9, by + 9, lxx + 9, by - 9);
+        dc.drawLine(rxx - 10, by, rxx - 2, by + 8);
+        dc.drawLine(rxx - 2, by + 8, rxx + 11, by - 9);
+        dc.setPenWidth(1);
+    }
 
-        drawPellets(dc, cx, 322, totalPages(), index);
+    // Font helpers — prefer bundled Roboto Mono, fall back to the system fonts.
+    function fTitle() { return monoS == null ? Graphics.FONT_SMALL : monoS; }
+    function fSmall() { return monoXS == null ? Graphics.FONT_XTINY : monoXS; }
+
+    // Design face #2 — idle. Mascot picks an expression to match the web:
+    // idle → chasing a ghost, success → sparkles, empty → sleeping (zzz).
+    // Text hierarchy stays proportional: mascot biggest, then title, then the
+    // smaller count line, then the clock (same size as the title).
+    function drawIdleFace(dc, cx, h) {
+        var mid = Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER;
+        var mode = "idle";
+        if (agents.size() == 0)                 { mode = "empty"; }
+        else if (Time.now().value() < successUntil) { mode = "success"; }
+
+        var cy = 122;
+        var r = 44;
+        if (mode.equals("idle")) { drawGhostMini(dc, cx + 64, cy - 2, 17); }
+        drawPacmanSolid(dc, cx, cy, r, 0xFDD835, 0.05 + mouthOpen() * 0.9);
+        if (mode.equals("success")) { drawSparkles(dc, cx, cy, r); }
+        if (mode.equals("empty"))   { drawZzz(dc, cx + r - 2, cy - r + 2); }
+
+        var title = mode.equals("empty") ? "No agents"
+                  : (mode.equals("success") ? "Approved!" : "All clear");
+        var tcol = mode.equals("empty") ? 0x9AA0A6
+                 : (mode.equals("success") ? 0x34A853 : 0x8AB4F8);
+        dc.setColor(tcol, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(cx, 206, fTitle(), title, mid);
+
+        dc.setColor(0x9AA0A6, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(cx, 242, fSmall(),
+            agents.size().format("%d") + " agents · " + waitCount.format("%d") + " waiting", mid);
+
+        var t = System.getClockTime();
+        dc.setColor(0xFFFFFF, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(cx, 286, fTitle(),
+            t.hour.format("%02d") + ":" + t.min.format("%02d"), mid);
+    }
+
+    // Small blue ghost (idle companion) — dome + scalloped skirt + eyes.
+    function drawGhostMini(dc, gx, gy, r) {
+        dc.setColor(0x4FC3F7, Graphics.COLOR_TRANSPARENT);
+        dc.fillCircle(gx, gy, r);
+        dc.fillRectangle(gx - r, gy, 2 * r + 1, r);
+        dc.setColor(0x000000, Graphics.COLOR_TRANSPARENT);          // carve skirt notches
+        var yb = gy + r;
+        for (var i = 0; i < 3; i++) {
+            var bx = gx - r + (2 * r) * i / 3;
+            var bw = (2 * r) / 3;
+            dc.fillPolygon([[bx, yb], [bx + bw, yb], [bx + bw / 2, yb - 6]]);
+        }
+        dc.setColor(0xFFFFFF, Graphics.COLOR_TRANSPARENT);          // eyes
+        dc.fillCircle(gx - r / 3, gy - r / 6, r / 4);
+        dc.fillCircle(gx + r / 3, gy - r / 6, r / 4);
+        dc.setColor(0x202124, Graphics.COLOR_TRANSPARENT);
+        dc.fillCircle(gx - r / 3, gy - r / 6, r / 9);
+        dc.fillCircle(gx + r / 3, gy - r / 6, r / 9);
+    }
+
+    // Three 4-point sparkle stars (success companion).
+    function drawSparkles(dc, cx, cy, r) {
+        drawStar(dc, cx - r - 6, cy - r + 4, 7, 0xFBBC04);
+        drawStar(dc, cx + r + 4, cy - r + 12, 5, 0x8AB4F8);
+        drawStar(dc, cx + r - 6, cy - r - 8, 4, 0x34A853);
+    }
+    function drawStar(dc, x, y, s, col) {
+        var q = s / 3;
+        dc.setColor(col, Graphics.COLOR_TRANSPARENT);
+        dc.fillPolygon([[x, y - s], [x + q, y - q], [x + s, y], [x + q, y + q],
+                        [x, y + s], [x - q, y + q], [x - s, y], [x - q, y - q]]);
+    }
+
+    // Rising "z z" (empty/sleeping companion).
+    function drawZzz(dc, x, y) {
+        var c = Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER;
+        dc.setColor(0x9AA0A6, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(x, y, Graphics.FONT_XTINY, "z", c);
+        dc.drawText(x + 12, y - 15, Graphics.FONT_TINY, "z", c);
     }
 }

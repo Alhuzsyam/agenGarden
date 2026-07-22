@@ -21,9 +21,11 @@ struct Agent: Identifiable, Codable, Equatable {
     var updatedAt: Date
 
     var stateLabel: String {
+        // Priority matches the webapp/Garmin fleet state so all surfaces agree:
+        // error → needs-you → done → still running.
         if isError { return "GAME OVER" }
-        if isDone { return "cherry get! 🍒" }
         if needsAttention { return "ada ghost — butuh input!" }
+        if isDone { return "cherry get! 🍒" }
         switch growth {
         case ..<2: return "insert coin…"
         case ..<6: return "wakka wakka…"
@@ -83,8 +85,10 @@ final class AgentStore: ObservableObject {
             agent.growth += 1
             agent.lastTool = e.tool
             agent.isDone = false
+            agent.needsAttention = false   // a running tool means any prior approval is resolved
         case "attention":
             agent.needsAttention = true
+            agent.isDone = false           // an agent waiting on you is active, not done
         case "resume":
             agent.needsAttention = false
             agent.isDone = false
@@ -139,6 +143,7 @@ final class AgentStore: ObservableObject {
 
         if let idx = agents.firstIndex(where: { $0.id == agent }) {
             agents[idx].needsAttention = true
+            agents[idx].isDone = false     // a pending approval supersedes a stale "done"
             agents[idx].updatedAt = now
         } else {
             agents.append(Agent(id: agent, needsAttention: true, startedAt: now, updatedAt: now))

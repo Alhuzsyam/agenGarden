@@ -1,0 +1,6 @@
+<resources>
+  <fonts>
+    <font id="MonoS" filename="fonts/mono_s.fnt" />
+    <font id="MonoXS" filename="fonts/mono_xs.fnt" />
+  </fonts>
+</resources>
